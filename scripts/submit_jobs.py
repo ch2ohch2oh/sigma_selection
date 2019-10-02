@@ -32,8 +32,8 @@ if script == 'pi0_mc.py':
     assert(len(list_mdst) == 16)
 elif script == 'sigma_mc.py':
     # Need much more data for simga
-    list_mdst = b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=50&ty=Any&dt=on_resonance&bl=caseB&st=1')
-    assert(len(list_mdst) == 100)
+    list_mdst = b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=30&ty=Any&dt=on_resonance&bl=caseB&st=1')
+    assert(len(list_mdst) == 40)
 else:
     print("Script not recognized!")
     sys.exit(-1)
