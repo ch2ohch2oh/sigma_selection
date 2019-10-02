@@ -16,6 +16,7 @@ import sys
 from variables import variables
 from variables.utils import create_aliases_for_selected
 from variables.utils import create_aliases
+import variables.collections as vc
 
 b2c.setupB2BIIDatabase(isMC = True)
 
@@ -55,16 +56,15 @@ variables.addAlias('pid_kpi', 'atcPIDBelle(3,2)')
 variables.addAlias('cosa', 'cosAngleBetweenMomentumAndVertexVector')
 variables.addAlias('cosaXY', 'cosAngleBetweenMomentumAndVertexVectorInXYPlane')
 
-list_mc = ['isSignal', 'mcErrors', 'mcPDG', 
-	'genMotherID', 'genMotherP', 'genMotherPDG', 'genParticleID', 
-	'nMCMatches', 'isPrimarySignal']
-list_basics = ['M', 'ErrM', 'px', 'py', 'pz', 'pt', 'p', 'E', 'cosTheta', 'phi', 'charge', 'PDG']
+list_mc = ['isSignal', 'isPrimarySignal', 'mcErrors', 'mcPDG', 
+           'genMotherID', 'genMotherP', 'genMotherPDG', 'genParticleID', 'nMCMatches']
+list_basics = ['M', 'ErrM', 'px', 'py', 'pz', 'pt', 'p', 'E', 
+               'cosTheta', 'phi', 'charge', 'PDG'] + vc.momentum_uncertainty
 list_vertex = ['distance', 'significanceOfDistance', 'x', 'y', 'z',
-	'dx', 'dy', 'dz', 
-	'x_uncertainty', 'y_uncertainty', 'z_uncertainty', 
-	'dr', 'dphi', 'dcosTheta', 'chiProb', 'cosa', 'cosaXY']
+               'dx', 'dy', 'dz', 'x_uncertainty', 'y_uncertainty', 'z_uncertainty', 
+               'dr', 'dphi', 'dcosTheta', 'chiProb', 'cosa', 'cosaXY']
 list_track = ['d0', 'z0', 'tanlambda', 'phi0', 'omega',
-	'd0Err', 'z0Err', 'tanlambdaErr', 'phi0Err',  'omegaErr', 'pValue']
+              'd0Err', 'z0Err', 'tanlambdaErr', 'phi0Err',  'omegaErr', 'pValue']
 list_cluster = ['clusterE', 'clusterTheta', 'clusterPhi', 'clusterE', 'clusterR']
 list_v0 = ['V0Deltad0', 'V0Deltaz0']
 list_pid = ['pid_ppi', 'pid_pk', 'pid_kpi']
@@ -73,37 +73,42 @@ list_event = ['IPX', 'IPY', 'IPZ']
 # All the variables that go to the final ntuple.
 # =============================================
 # sigma+
-list_ntuple = list_basics + list_vertex + list_v0 + list_mc + list_event + ['cosa', 'cosaXY']
+list_ntuple = list_basics + list_vertex + list_event + ['cosa', 'cosaXY'] + list_mc
 # proton
 list_ntuple += create_aliases_for_selected(list_basics + list_track + list_pid + list_mc,
-	'Sigma+ -> ^p+ pi0', prefix = ['p'])
+                                           'Sigma+ -> ^p+ pi0', prefix = ['p'])
 # pion
 list_ntuple += create_aliases_for_selected(list_basics + list_vertex + list_mc,
-	'Sigma+ -> p+ ^pi0', prefix = ['pi0'])
-# gamma
-list_ntuple += create_aliases_for_selected(list_basics + list_cluster + list_mc,
-	'Sigma+ -> p+ [pi0 -> ^gamma ^gamma]', prefix = ['gamma1', 'gamma2'])
+                                           'Sigma+ -> p+ ^pi0', prefix = ['pi0'])
 
 # Reconstruction
-# ===========================================
-#ma.vertexTree('pi0:mdst', 0, massConstraint = [111],  path = mp)
-# Use only proton with good PID info
-ma.fillParticleList('p+:good', 'pid_ppi > 0.6 and pid_pk > 0.6', path = mp)
+# ======================================treefitter=====
+# Use only proton with good PID info and some distance away from IP
+ma.fillParticleList('p+:good', 'pid_ppi > 0.6 and pid_pk > 0.6 and abs(d0) >= 0.01', path = mp)
 # Put a wide 20 MeV mass cut around the nominal mass
-ma.reconstructDecay('Sigma+:ip -> p+:good pi0:mdst', 'M >= 1.18 and M <= 1.20', path = mp)
-ma.vertexTree('Sigma+:ip', -1, massConstraint = [111], ipConstraint = True,
+sigma_mass_cut = 'M >= 1.18 and M <= 1.20'
+ma.reconstructDecay('Sigma+:all -> p+:good pi0:mdst', 
+                    'M >= 1.18 and M <= 1.20', path = mp)
+ma.vertexTree('Sigma+:all', 0, ipConstraint = True, massConstraint = [],
               updateAllDaughters = True, path = mp)
-ma.matchMCTruth('Sigma+:ip', path = mp)
-#ma.cutAndCopyList('pi0:updated', 'pi0:mdst', '', path = mp)
-#ma.reconstructDecay('Sigma+:displaced -> p+:good pi0:updated', '', path = mp)
-#ma.vertexTree('Sigma+:displaced', -1, massConstraint = [111], path = mp)
 
-# Write ntuple to root file
-mp.add_module('VariablesToNtuple',
-	particleList='Sigma+:ip',
-	variables=list_ntuple,
-	treeName='sigma',
-	fileName=sys.argv[2])
+# gamma_e_cut = 'daughter(0, E) >= 0.04 and daughter(1, E) >= 0.04'
+# # Discard the low momentum pi0s as in the Belle note  
+# ma.cutAndCopyList('pi0:displaced', 'pi0:mdst', gamma_e_cut + ' and p >= 0.1', path = mp)
+
+# # Refit Sigma+ with displaced pi0
+# pi0_mass_cut = ''
+# ma.reconstructDecay('Sigma+:updated -> p+:good pi0:displaced', pi0_mass_cut, path = mp)
+# ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [111], path = mp)
+ma.matchMCTruth('Sigma+:all', path = mp)
+# ma.matchMCTruth('Sigma+:updated')
+
+# Write ntuple
+# =============================================
+mp.add_module('VariablesToNtuple', particleList='Sigma+:all', variables=list_ntuple,
+              treeName='sigma', fileName=sys.argv[2])
+# mp.add_module('VariablesToNtuple', particleList='Sigma+:updated', variables=list_ntuple,
+#               treeName='sigma_updated', fileName=sys.argv[2])
 
 b2.process(path=mp)
 
