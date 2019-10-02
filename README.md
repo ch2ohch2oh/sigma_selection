@@ -1,2 +1,1 @@
-# sigma_selection
-Sigma+ selection
+# $\Sigma^+$ selection in Belle
