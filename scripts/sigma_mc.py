@@ -92,20 +92,18 @@ ma.reconstructDecay('Sigma+:all -> p+:good pi0:mdst',
 ma.vertexTree('Sigma+:all', 0, ipConstraint = True, massConstraint = [],
               updateAllDaughters = True, path = mp)
 
-# gamma_e_cut = 'daughter(0, E) >= 0.04 and daughter(1, E) >= 0.04'
-# # Discard the low momentum pi0s as in the Belle note  
-# ma.cutAndCopyList('pi0:displaced', 'pi0:mdst', gamma_e_cut + ' and p >= 0.1', path = mp)
+# Discard the low momentum pi0s as in the Belle note  
+ma.cutAndCopyList('pi0:displaced', 'pi0:mdst', 'daughter(0, E) >= 0.04 and daughter(1, E) >= 0.04 and p >= 0.1 and M >= 0.12 and M <= 0.15', path = mp)
 
-# # Refit Sigma+ with displaced pi0
-# pi0_mass_cut = ''
-# ma.reconstructDecay('Sigma+:updated -> p+:good pi0:displaced', pi0_mass_cut, path = mp)
-# ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [111], path = mp)
-ma.matchMCTruth('Sigma+:all', path = mp)
-# ma.matchMCTruth('Sigma+:updated')
+# Refit Sigma+ with displaced pi0
+ma.reconstructDecay('Sigma+:updated -> p+:good pi0:displaced', '', path = mp)
+ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [], path = mp)
+# ma.matchMCTruth('Sigma+:all', path = mp)
+ma.matchMCTruth('Sigma+:updated')
 
 # Write ntuple
 # =============================================
-mp.add_module('VariablesToNtuple', particleList='Sigma+:all', variables=list_ntuple,
+mp.add_module('VariablesToNtuple', particleList='Sigma+:updated', variables=list_ntuple,
               treeName='sigma', fileName=sys.argv[2])
 # mp.add_module('VariablesToNtuple', particleList='Sigma+:updated', variables=list_ntuple,
 #               treeName='sigma_updated', fileName=sys.argv[2])
