@@ -57,7 +57,8 @@ variables.addAlias('cosa', 'cosAngleBetweenMomentumAndVertexVector')
 variables.addAlias('cosaXY', 'cosAngleBetweenMomentumAndVertexVectorInXYPlane')
 
 list_mc = ['isSignal', 'isPrimarySignal', 'mcErrors', 'mcPDG', 
-           'genMotherID', 'genMotherP', 'genMotherPDG', 'genParticleID', 'nMCMatches']
+           'genMotherID', 'genMotherP', 'genMotherPDG', 'genParticleID', 'nMCMatches',
+          'mcP', 'mcE']
 list_basics = ['M', 'ErrM', 'px', 'py', 'pz', 'pt', 'p', 'E', 
                'cosTheta', 'phi', 'charge', 'PDG'] + vc.momentum_uncertainty
 list_vertex = ['distance', 'significanceOfDistance', 'x', 'y', 'z',
@@ -86,7 +87,7 @@ list_ntuple += create_aliases_for_selected(list_basics,
 # Reconstruction
 # ==============================================
 # Use only proton with good PID info and some distance away from IP
-ma.fillParticleList('p+:good', 'pid_ppi > 0.6 and pid_pk > 0.6 and abs(d0) >= 0.01', path = mp)
+ma.fillParticleList('p+:good', 'pid_ppi > 0.6 and pid_pk > 0.6', path = mp)
 
 # Put a 20 MeV mass cut around the nominal mass
 ma.reconstructDecay('Sigma+:all -> p+:good pi0:mdst', 'M >= 1.18 and M <= 1.20', path = mp)
@@ -96,7 +97,8 @@ ma.vertexTree('Sigma+:all', 0, ipConstraint = True, updateAllDaughters = True, p
 gamma_cut = 'daughter(1, daughter(0, E)) >= 0.04 and daughter(1, daughter(1, E)) >= 0.04'
 pi0_cut = 'daughter(1, p) >= 0.1 and daughter(1, M) >= 0.12 and daughter(1, M) <= 0.15'
 ma.cutAndCopyList('Sigma+:updated', 'Sigma+:all', gamma_cut + ' and ' + pi0_cut, path = mp)
-ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [111], path = mp)
+ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [111], 
+              updateAllDaughters = True, path = mp)
 ma.matchMCTruth('Sigma+:updated', path = mp)
 
 # Output
