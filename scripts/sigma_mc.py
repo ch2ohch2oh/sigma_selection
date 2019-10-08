@@ -87,24 +87,26 @@ list_ntuple += create_aliases_for_selected(list_basics,
 # Reconstruction
 # ==============================================
 # Use only proton with good PID info and some distance away from IP
-ma.fillParticleList('p+:good', 'pid_ppi > 0.6 and pid_pk > 0.6', path = mp)
+ma.fillParticleList('p+:good', '', path = mp)
 
 # Put a 20 MeV mass cut around the nominal mass
-ma.reconstructDecay('Sigma+:all -> p+:good pi0:mdst', 'M >= 1.18 and M <= 1.20', path = mp)
-ma.vertexTree('Sigma+:all', 0, ipConstraint = True, updateAllDaughters = True, path = mp)
+ma.reconstructDecay('Sigma+:loose -> p+:good pi0:mdst', '', path = mp)
+ma.vertexTree('Sigma+:loose', 0, ipConstraint = True, updateAllDaughters = True, path = mp)
 
 # Select good pi0 with displaced vertex
-gamma_cut = 'daughter(1, daughter(0, E)) >= 0.04 and daughter(1, daughter(1, E)) >= 0.04'
-pi0_cut = 'daughter(1, p) >= 0.1 and daughter(1, M) >= 0.12 and daughter(1, M) <= 0.15'
-ma.cutAndCopyList('Sigma+:updated', 'Sigma+:all', gamma_cut + ' and ' + pi0_cut, path = mp)
-ma.vertexTree('Sigma+:updated', 0, ipConstraint = True, massConstraint = [111], 
+pi0_cut = 'daughter(1, M) >= 0.12 and daughter(1, M) <= 0.15'
+ma.cutAndCopyList('Sigma+:good', 'Sigma+:loose', pi0_cut, path = mp)
+ma.vertexTree('Sigma+:good', 0, ipConstraint = True, massConstraint = [111], 
               updateAllDaughters = True, path = mp)
-ma.matchMCTruth('Sigma+:updated', path = mp)
+ma.matchMCTruth('Sigma+:good', path = mp)
+ma.matchMCTruth('Sigma+:loose', path = mp)
 
 # Output
 # =============================================
-mp.add_module('VariablesToNtuple', particleList='Sigma+:updated', variables=list_ntuple,
-              treeName='sigma', fileName=sys.argv[2])
+mp.add_module('VariablesToNtuple', particleList='Sigma+:loose', variables=list_ntuple,
+              treeName='sigma_good', fileName=sys.argv[2])
+mp.add_module('VariablesToNtuple', particleList='Sigma+:good', variables=list_ntuple,
+              treeName='sigma_loose', fileName=sys.argv[2])
 
 b2.process(path=mp)
 
