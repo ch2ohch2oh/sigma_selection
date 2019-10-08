@@ -90,7 +90,7 @@ list_ntuple += create_aliases_for_selected(list_basics,
 ma.fillParticleList('p+:good', '', path = mp)
 
 # Put a 20 MeV mass cut around the nominal mass
-ma.reconstructDecay('Sigma+:loose -> p+:good pi0:mdst', '', path = mp)
+ma.reconstructDecay('Sigma+:loose -> p+:good pi0:mdst', 'M >= 1.0 and M <= 1.3', path = mp)
 ma.vertexTree('Sigma+:loose', 0, ipConstraint = True, updateAllDaughters = True, path = mp)
 
 # Select good pi0 with displaced vertex
