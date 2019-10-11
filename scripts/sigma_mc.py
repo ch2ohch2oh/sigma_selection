@@ -56,57 +56,61 @@ variables.addAlias('pid_kpi', 'atcPIDBelle(3,2)')
 variables.addAlias('cosa', 'cosAngleBetweenMomentumAndVertexVector')
 variables.addAlias('cosaXY', 'cosAngleBetweenMomentumAndVertexVectorInXYPlane')
 
-list_mc = ['isSignal', 'isPrimarySignal', 'mcErrors', 'mcPDG', 
-           'genMotherID', 'genMotherP', 'genMotherPDG', 'genParticleID', 'nMCMatches',
-          'mcP', 'mcE']
-list_basics = ['M', 'ErrM', 'px', 'py', 'pz', 'pt', 'p', 'E', 
-               'cosTheta', 'phi', 'charge', 'PDG'] + vc.momentum_uncertainty
-list_vertex = ['distance', 'significanceOfDistance', 'x', 'y', 'z',
-               'x_uncertainty', 'y_uncertainty', 'z_uncertainty', 
-               'dr', 'dphi', 'dcosTheta', 'chiProb', 'cosa', 'cosaXY']
-list_track = ['d0', 'z0', 'pValue']
-list_cluster = ['clusterE', 'clusterTheta', 'clusterPhi', 'clusterR']
-list_v0 = ['V0Deltad0', 'V0Deltaz0']
-list_pid = ['pid_ppi', 'pid_pk', 'pid_kpi']
-list_event = ['IPX', 'IPY', 'IPZ']
+mc_vars = ['isSignal', 'isPrimarySignal', 'mcPDG', 'genMotherPDG', 'nMCMatches']
+kinematic_vars = ['M', 'p', 'px', 'py', 'pz', 'phi', 'theta', 'charge', 'xp']
+vertex_vars = ['cosa', 'cosaXY', 'chiProb', 'x', 'y', 'z', 
+               'distance', 'significanceOfDistance']
+track_vars = ['d0', 'z0']
+pid_vars = ['pid_ppi', 'pid_pk', 'pid_kpi']
+event_vars = ['IPX', 'IPY', 'IPZ']
 
 # Variables
 # =============================================
 # sigma+
-list_ntuple = list_basics + list_vertex + list_event + ['cosa', 'cosaXY'] + list_mc
+sigma_vars = kinematic_vars + vertex_vars + mc_vars
 # proton
-list_ntuple += create_aliases_for_selected(list_basics + list_track + list_pid + list_mc,
-                                           'Sigma+ -> ^p+ pi0', prefix = ['p'])
-# pion
-list_ntuple += create_aliases_for_selected(list_basics + list_vertex + list_mc,
-                                           'Sigma+ -> p+ ^pi0', prefix = ['pi0'])
+proton_vars = create_aliases_for_selected(kinematic_vars + track_vars + pid_vars + mc_vars,
+                                          'Sigma+ -> ^p+ pi0', prefix = ['p'])
+# pi0
+pi0_vars = create_aliases_for_selected(kinematic_vars + vertex_vars + mc_vars,
+                                       'Sigma+ -> p+ ^pi0', prefix = ['pi0'])
 # gamma
-list_ntuple += create_aliases_for_selected(list_basics,
-                                           'pi0 -> ^gamma ^gamma', prefix = ['gamma1', 'gamma2'])
+gamma_vars = create_aliases_for_selected(['phi', 'theta', 'E', 'goodBelleGamma'],
+                                         'Sigma+ -> p+ [pi0 -> ^gamma ^gamma]', prefix = ['gamma1', 'gamma2'])
+
+ntuple_vars = sigma_vars + proton_vars + pi0_vars + gamma_vars + event_vars
 
 # Reconstruction
 # ==============================================
 # Use only proton with good PID info and some distance away from IP
-ma.fillParticleList('p+:good', '', path = mp)
+ma.fillParticleList('p+:good', 'pid_ppi >= 0.6 and pid_pk >= 0.6', path = mp)
+
+# Vertex pi0s to IP so that we have a mass distribution of pi0s
+# The pi0:mdst list is mass constrained by default
+#ma.vertexTree('pi0:mdst', 0, path = mp)
 
 # Put a 20 MeV mass cut around the nominal mass
-ma.reconstructDecay('Sigma+:loose -> p+:good pi0:mdst', 'M >= 1.0 and M <= 1.3', path = mp)
+ma.reconstructDecay('Sigma+:loose -> p+:good pi0:mdst', 'M >= 1.1 and M <= 1.3', path = mp)
 ma.vertexTree('Sigma+:loose', 0, ipConstraint = True, updateAllDaughters = True, path = mp)
+
+# Save the variables before mass constraint
+mp.add_module('VariablesToNtuple', 
+              particleList = 'Sigma+:loose', 
+              variables=ntuple_vars,
+              treeName='sigma_loose', 
+              fileName=sys.argv[2])
 
 # Select good pi0 with displaced vertex
 pi0_cut = 'daughter(1, M) >= 0.12 and daughter(1, M) <= 0.15'
 ma.cutAndCopyList('Sigma+:good', 'Sigma+:loose', pi0_cut, path = mp)
-ma.vertexTree('Sigma+:good', 0, ipConstraint = True, massConstraint = [111], 
-              updateAllDaughters = True, path = mp)
+ma.vertexTree('Sigma+:good', 0, ipConstraint = True, massConstraint = [111], path = mp)
 ma.matchMCTruth('Sigma+:good', path = mp)
-ma.matchMCTruth('Sigma+:loose', path = mp)
 
-# Output
-# =============================================
-mp.add_module('VariablesToNtuple', particleList='Sigma+:loose', variables=list_ntuple,
-              treeName='sigma_good', fileName=sys.argv[2])
-mp.add_module('VariablesToNtuple', particleList='Sigma+:good', variables=list_ntuple,
-              treeName='sigma_loose', fileName=sys.argv[2])
+mp.add_module('VariablesToNtuple', 
+              particleList = 'Sigma+:good', 
+              variables=ntuple_vars,
+              treeName='sigma_good', 
+              fileName=sys.argv[2])
 
 b2.process(path=mp)
 
