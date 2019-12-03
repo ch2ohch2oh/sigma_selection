@@ -1,15 +1,12 @@
-# As we know the pi0 used to fit Sigma+ should be displaced from the IP
-# We want to show when the displaced pi0 has better resolution
-
-# The pi0:mdst from B2BII is mass constrained. Have to set updateAllDaughters to be true to 
-# see the distribution of pi0 mass
-
-
-# Expectations:
-# - With IP constraint on the Sigma+ vertex, the cosa should be close to 1 even it is not
-#   corrected for IP position
-#
-#
+# This is the first fully working version of the Sigma+ reconstruction script
+# - The number of candidates per event is not absurdly large
+# - The output size is reasonable and the mass peaks are not truncated at the tail
+# - Two tree fits are used
+# 
+# MC sample: http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=50&ty=Any&dt=Any&bl=caseB&st=0
+# => 1.4M candidates, 14K matched 
+# => 57 columns 
+# => 337MB output in total :-)
 import basf2 as b2
 import modularAnalysis as ma
 import b2biiConversion as b2c
