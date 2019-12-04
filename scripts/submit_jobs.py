@@ -18,6 +18,8 @@ def get_dataset(name):
     """Retrieve list of mdst files based on the name of the dataset"""
     if name == 'mc_exp55':
         return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=50&ty=Any&dt=Any&bl=caseB&st=0')
+    elif name == 'mc_exp55_500':
+        return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=500&ty=Any&dt=Any&bl=caseB&st=0')
     elif name == 'mc_background':
         return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=30&ty=Any&dt=Any&bl=caseB&st=0')
     elif name == 'mc_exp65':
