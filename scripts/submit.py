@@ -1,90 +1,129 @@
 #!/usr/bin/env python3
-# 
+
 # Submit jobs based on user scrpits
 #
 #
-import os
 import b2biiConversion as b2c
-import glob
-import sys
 import argparse
+import glob
+import os
+import sys
 import logging
 import shutil
 from termcolor import colored
-from multiprocessing import Pool
+import multiprocessing as mp
 import tqdm
 
-def get_dataset(name):
-    """Retrieve list of mdst files based on the name of the dataset"""
-    if name == 'mc_exp55':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=50&ty=Any&dt=Any&bl=caseB&st=0')
-    elif name == 'mc_exp55_500':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=500&ty=Any&dt=Any&bl=caseB&st=0')
-    elif name == 'mc_background':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=55&rs=1&re=30&ty=Any&dt=Any&bl=caseB&st=0')
-    elif name == 'mc_exp65':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/montecarlo.php?ex=65&rs=1&re=25&ty=Any&dt=Any&bl=caseB&st=0')
-    elif name == 'exp65_4S':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/mdst.php?ex=65&rs=1&re=100&skm=HadronBorJ&dt=on_resonance&bl=caseB')
-    elif name == 'exp65_1S':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/mdst.php?ex=65&rs=1000&re=1050&skm=HadronBorJ&dt=1S_scan&bl=caseB')
-    elif name == 'exp65_cont':
-        return b2c.parse_process_url('http://bweb3.cc.kek.jp/mdst.php?ex=65&rs=0&re=9999&skm=HadronBorJ&dt=continuum&bl=caseB')
-    else:
-        raise Exception(f'Dataset ({name}) not found')
+BELLE_EVENT_TYPES = ['Any', 'evtgen-mixed', 'evtgen-charged', 'evtgen-charm', 'evtgen-uds']
+BELLE_DATA_TYPES = ['Any']
 
-def submit_one(script, mdstpath, outdir, b2opt=""):
-    """Submit one job for one mdst file"""
-#     print(mdstpath)
+def get_mdst_list(is_data, exp, run_start = 1, run_end = 9999, 
+                  event_type = 'Any', data_type = 'Any', 
+                  belle_level = 'caseB', stream = 0):
+    """
+    Return mdst file list from Belle File Search Engine.
+    """
+    
+    if not is_data:
+        assert event_type in ['Any', 'evtgen-mixed', 'evtgen-charged', 'evtgen-charm', 'evtgen-uds']
+        url =  f'http://bweb3.cc.kek.jp/montecarlo.php?ex={exp}&rs={run_start}&re={run_end}&ty={event_type}&dt={data_type}&bl={belle_level}&st={stream}'
+    else:
+        raise Exception("Not implemented")
+    print(f'[get_mdst_list] Getting mdst from {url}')
+    return b2c.parse_process_url(url)    
+
+def submit_one(script, mdstpath, outdir, queue = 's', b2opt = ""):
+    """
+    Submit one job for one mdst file
+    """
     base = os.path.basename(mdstpath)
     rootname = base + '.root'
     logname = base + '.log'
     rootpath = os.path.join(outdir, rootname)
     logpath = os.path.join(outdir, logname)
-    os.system(f'bsub -q s -oo {logpath} basf2 {b2opt} {script} {mdstpath} {rootpath} >> /dev/null')
+    return os.system(f'bsub -q {queue} -oo {logpath} basf2 {b2opt} {script} {mdstpath} {rootpath} >> /dev/null')
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('script', help = 'Script to run')
-    parser.add_argument('data', help = 'Which data set to use?')
+    
+    parser.add_argument('script', help = 'steering script to run')
+    parser.add_argument('outdir', help = 'output dir')
+    
+    parser.add_argument('--is_data', action = 'store_true', default = False, help = 'MC or data')
+    parser.add_argument('--exp', type=int, help = 'exp no.')
+    parser.add_argument('--run_start', type = int, help = 'run number start', default = 1)
+    parser.add_argument('--run_end', type = int, help = 'run number end', default = 9999)
+    parser.add_argument('--event_type', help = 'event type (for MC)', 
+                        default = 'Any', choices = BELLE_EVENT_TYPES)
+    parser.add_argument('--data_type', help = 'data type (for data)', 
+                        default = 'Any', choices = BELLE_DATA_TYPES)
+    parser.add_argument('--stream',  type = int, default = 0,
+                        help = 'stream number (for MC)')
+    
     parser.add_argument('--one', action = 'store_true', default = False,
-                        help = 'Process the first mdst for testing')
+                        help = 'only process the first mdst in the list')
     parser.add_argument('--clear', action = 'store_true', default = False,
-                       help = 'Clear output dir or not')
-    parser.add_argument('outdir', help = 'Output dir')
+                        help = 'clear output dir or not')
 
     args = parser.parse_args()
     
     # Give user some information about the script and data set
-    print(f'Script to run: {args.script}')
-    print(f'Dataset: {args.data}')
-    dataset = get_dataset(args.data)
-    assert len(dataset) > 0, "Empty dataset!"
+    print("script =", args.script)
+    print("outdir =", args.outdir)
+    print("is_data =", args.is_data)
+    print("exp =", args.exp)
+    print("run_start =", args.run_start)
+    print("run_end =", args.run_end)
+    if not args.is_data:
+        print("event_type =", args.event_type)
+    else:
+        print("data_type =", args.data_type)
+    print("stream =", args.stream)
+    
+    dataset = get_mdst_list(args.is_data, 
+                            args.exp, 
+                            run_start = args.run_start,
+                            run_end = args.run_end,
+                            event_type = args.event_type,
+                            data_type = args.data_type,
+                            stream = args.stream)
+    if len(dataset) == 0:
+        print(colored('Empty dataset', 'red'))
+        exit(1)
+
     print('The dataset contains %d mdst files' % len(dataset))
     if args.one == True:
         print(colored('Test mode on: will only run on the first mdst file', 'red'))
         dataset = dataset[:1]
     
-    outdir = args.outdir
-    print(f'Output dir: {outdir}')
-    
     # Create output dir if not existing
+    outdir = args.outdir
     os.makedirs(outdir, exist_ok = True)
     if not os.path.exists(outdir):
         raise Exception("Failed to create output dir")
     
     # Clear the output dir if asked
     if args.clear == True:
-        print(colored('Clearing output directory...', 'red'))
+        print(colored('Clearing output directory...', 'red'), end = '')
         shutil.rmtree(outdir)
         os.mkdir(outdir)
         assert os.path.exists(outdir), "Output directory does not exist!"
         print(colored('Done', 'green'))
-
+    
+    # Use more workers to make submission faster
+    nworkers = 8
+    print("Number workers for job submission =", nworkers)
+    pool = mp.Pool(nworkers)
+    
     bar = tqdm.tqdm(total = len(dataset))
+    def update_bar(*args):
+        bar.update()
     b2opt = ""
     if args.one == True:
         b2opt = "-n 1000"
+
     for mdst in dataset:
-        submit_one(args.script, mdst, args.outdir, b2opt)
-        bar.update()
+        pool.apply_async(submit_one, args = (args.script, mdst, args.outdir, 's', b2opt), callback = update_bar)
+    pool.close()
+    pool.join()
+    
